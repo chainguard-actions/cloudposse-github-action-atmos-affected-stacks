@@ -1,5 +1,7 @@
 # cloudposse/github-action-atmos-affected-stacks
 
+A composite workflow that runs the atmos describe affected command
+
 Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/cloudposse/github-action-atmos-affected-stacks](https://github.com/cloudposse/github-action-atmos-affected-stacks).
 
 ## Versions

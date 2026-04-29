@@ -1,6 +1,12 @@
 # cloudposse/github-action-atmos-affected-stacks
 
-Hardened GitHub Action by [Chainguard](https://www.chainguard.dev).
+Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/cloudposse/github-action-atmos-affected-stacks](https://github.com/cloudposse/github-action-atmos-affected-stacks).
+
+## Versions
+
+| Version | Tag | Upstream commit |
+|---------|-----|-----------------|
+| v6 | [`v6`](https://github.com/chainguard-actions/github-action-atmos-affected-stacks/tree/v6) | — |
 
 ## Privacy
 

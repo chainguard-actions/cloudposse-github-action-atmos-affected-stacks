@@ -1,7 +1,0 @@
-{
-  "owner": "cloudposse",
-  "name": "github-action-atmos-affected-stacks",
-  "visibility": "internal",
-  "description": "A composite workflow that runs the atmos describe affected command",
-  "block_publish": false
-}

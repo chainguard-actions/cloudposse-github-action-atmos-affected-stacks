@@ -8,7 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
-| v6 | [`v6`](https://github.com/chainguard-actions/github-action-atmos-affected-stacks/tree/v6) | — |
+| v6 | [`v6`](https://github.com/chainguard-actions/cloudposse--github-action-atmos-affected-stacks/tree/v6) | — |
 
 ## Privacy
 

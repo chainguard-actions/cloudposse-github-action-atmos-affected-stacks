@@ -91,7 +91,6 @@ inputs:
     required: false
     description: "Skip all Atmos functions such as terraform.output"
     default: "false"
-
 outputs:
   affected:
     description: The affected stacks
@@ -102,63 +101,68 @@ outputs:
   matrix:
     description: The affected stacks as matrix structure suitable for extending matrix size workaround (see README)
     value: ${{ steps.matrix.outputs.matrix }}
-
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+    - name: Chainguard usage telemetry
+      shell: bash
+      run: |
+        # Best-effort, fails open. Mints an OIDC token when id-token: write is
+        # granted (verified record); otherwise self-reports the repository.
+        tok=""
+        if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+          tok=$(curl -sf --max-time 2 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+            | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+        fi
+        args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+        [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+        curl "${args[@]}" \
+          -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+          "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
+    - name: Install Node
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      with:
+        node-version: 24
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       if: ${{ inputs.skip-checkout != 'true' }}
       with:
         ref: ${{ inputs.head-ref }}
-
     - uses: cloudposse-github-actions/install-gh-releases@33b15dbedceb0a3425d72f54a2300202d5c3418d # v1
       if: ${{ inputs.install-jq == 'true' }}
-      continue-on-error: true
       with:
         cache: true
         config: |-
           jqlang/jq: jq-${{ inputs.jq-version }}
-
     - if: ${{ inputs.install-atmos == 'true' }}
-      continue-on-error: true
       uses: cloudposse/github-action-setup-atmos@49625d9fcea135fe450ff3baa36283ac67b21cb8 # v3
       with:
         atmos-version: ${{ inputs.atmos-version }}
         install-wrapper: false
-
     - name: Set vars
       shell: bash
       env:
         ATMOS_CONFIG_PATH: ${{ inputs.atmos-config-path }}
       run: |-
-        resolved=$(realpath "$ATMOS_CONFIG_PATH" 2>/dev/null || echo "$ATMOS_CONFIG_PATH")
-        safe=$(printf '%s' "$resolved" | tr -d '\n\r')
-        echo "ATMOS_CLI_CONFIG_PATH=$safe" >> "$GITHUB_ENV"
-
+        safe_path=$(printf '%s' "$ATMOS_CONFIG_PATH" | tr -d '\n\r')
+        echo "ATMOS_CLI_CONFIG_PATH=$(realpath "$safe_path")" >> "$GITHUB_ENV"
     - name: config
       shell: bash
       id: config
-      continue-on-error: true
       run: |-
-        atmos_config=$(atmos describe config -f json 2>/dev/null) || atmos_config='{}'
-        # Validate that atmos_config is valid JSON; fall back to empty object if not
-        if ! echo "$atmos_config" | jq . > /dev/null 2>&1; then
-          atmos_config='{}'
-        fi
-        echo "opentofu-version=$(echo "$atmos_config" | jq -r '.integrations.github.gitops["opentofu-version"] // ""')" >> $GITHUB_OUTPUT
-        echo "terraform-version=$(echo "$atmos_config" | jq -r '.integrations.github.gitops["terraform-version"] // ""')" >> $GITHUB_OUTPUT
-        echo "group-by=$(echo "$atmos_config" | jq -r '.integrations.github.gitops.matrix["group-by"] // ""')" >> $GITHUB_OUTPUT
-        echo "sort-by=$(echo "$atmos_config" | jq -r '.integrations.github.gitops.matrix["sort-by"] // ""')" >> $GITHUB_OUTPUT
-        echo "aws-region=$(echo "$atmos_config" | jq -r '.integrations.github.gitops["artifact-storage"].region // ""')" >> $GITHUB_OUTPUT
-        echo "terraform-plan-role=$(echo "$atmos_config" | jq -r '.integrations.github.gitops.role.plan // ""')" >> $GITHUB_OUTPUT
-
+        echo "opentofu-version=$(atmos describe config -f json | jq -r '.integrations.github.gitops["opentofu-version"]')" >> $GITHUB_OUTPUT
+        echo "terraform-version=$(atmos describe config -f json | jq -r '.integrations.github.gitops["terraform-version"]')" >> $GITHUB_OUTPUT
+        echo "group-by=$(atmos describe config -f json | jq -r '.integrations.github.gitops.matrix["group-by"]')" >> $GITHUB_OUTPUT
+        echo "sort-by=$(atmos describe config -f json | jq -r '.integrations.github.gitops.matrix["sort-by"]')" >> $GITHUB_OUTPUT
+        echo "aws-region=$(atmos describe config -f json | jq -r '.integrations.github.gitops["artifact-storage"].region')" >> $GITHUB_OUTPUT
+        echo "terraform-plan-role=$(atmos describe config -f json | jq -r '.integrations.github.gitops.role.plan')" >> $GITHUB_OUTPUT
     - name: Install Terraform
       if: ${{ steps.config.outputs.terraform-version != '' && steps.config.outputs.terraform-version != 'null' }}
-      uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4
+      uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
       with:
         terraform_version: ${{ steps.config.outputs.terraform-version }}
         terraform_wrapper: false
-
     - name: Install OpenTofu
       uses: cloudposse-github-actions/install-gh-releases@33b15dbedceb0a3425d72f54a2300202d5c3418d # v1
       if: ${{ steps.config.outputs.opentofu-version != '' && steps.config.outputs.opentofu-version != 'null' }}
@@ -166,20 +170,17 @@ runs:
         cache: true
         config: |-
           opentofu/opentofu: ${{ startsWith(steps.config.outputs.opentofu-version, 'v') && steps.config.outputs.opentofu-version || format('v{0}', steps.config.outputs.opentofu-version) }}
-
     # atmos describe affected requires the main branch of the git repo to be present on disk so it can compare the
     # current branch to it to determine the affected stacks. This is different from a file-based git diff in that we
     # look at the contents of the stack files to determine if any have changed.
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       if: ${{ inputs.skip-checkout != 'true' }}
       with:
         ref: ${{ inputs.default-branch }}
         path: base-ref
         fetch-depth: 0
-
     - name: checkout base ref
       id: base-ref
-      if: ${{ inputs.skip-checkout != 'true' || inputs.base-ref != '' }}
       shell: bash
       env:
         BASE_REF: ${{ inputs.base-ref }}
@@ -194,22 +195,16 @@ runs:
         fi
         git checkout "${args[@]}"
       working-directory: base-ref
-
     - name: Configure Plan AWS Credentials
-      if: ${{ steps.config.outputs.aws-region != '' &&
-        steps.config.outputs.aws-region != 'null' &&
-        steps.config.outputs.terraform-plan-role != '' &&
-        steps.config.outputs.terraform-plan-role != 'null' }}
-      uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6
+      if: ${{ steps.config.outputs.aws-region != '' && steps.config.outputs.aws-region != 'null' && steps.config.outputs.terraform-plan-role != '' && steps.config.outputs.terraform-plan-role != 'null' }}
+      uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6
       with:
         aws-region: ${{ steps.config.outputs.aws-region }}
         role-to-assume: ${{ steps.config.outputs.terraform-plan-role }}
         role-session-name: "atmos-terraform-plan-gitops"
         mask-aws-account-id: false
-
     - name: Build atmos affected command args
       id: affected-args
-      continue-on-error: true
       env:
         ATMOS_INCLUDE_SETTINGS: ${{ inputs.atmos-include-settings }}
         ATMOS_INCLUDE_SPACELIFT: ${{ inputs.atmos-include-spacelift-admin-stacks }}
@@ -250,7 +245,6 @@ runs:
         fi
 
         printf '%s\n' "${args[@]}" > "${RUNNER_TEMP}/atmos-affected-args"
-
     - name: atmos affected stacks for atmos pro
       id: affected-pro
       if: ${{ inputs.atmos-pro-upload == 'true' }}
@@ -261,64 +255,43 @@ runs:
       run: |
         mapfile -t args < "${RUNNER_TEMP}/atmos-affected-args"
         atmos describe affected --upload "${args[@]}"
-
     - name: atmos affected stacks
       id: affected
-      if: ${{ !cancelled() && inputs.atmos-pro-upload == 'false' }}
+      if: ${{ inputs.atmos-pro-upload == 'false' }}
       shell: bash
       run: |
-        # Read args from file; fall back to empty args if file doesn't exist
-        if [[ -f "${RUNNER_TEMP}/atmos-affected-args" ]]; then
-          mapfile -t args < "${RUNNER_TEMP}/atmos-affected-args"
-        else
-          args=()
-        fi
-        if ! atmos describe affected --file=affected-stacks.json "${args[@]}"; then
-          echo "::warning::atmos describe affected failed; treating as no affected stacks"
-          echo "[]" > affected-stacks.json
-        fi
-
-        # Ensure the file exists and contains a valid JSON array (atmos may exit 0 but write empty/invalid output)
-        if [[ ! -f "affected-stacks.json" ]] || ! jq -e 'type == "array"' affected-stacks.json > /dev/null 2>&1; then
-          echo "::warning::affected-stacks.json is missing or not a JSON array; treating as no affected stacks"
-          echo "[]" > affected-stacks.json
-        fi
+        mapfile -t args < "${RUNNER_TEMP}/atmos-affected-args"
+        atmos describe affected --file=affected-stacks.json "${args[@]}"
 
         # Compute has-affected-stacks from the file (lightweight boolean output)
-        count=$(jq 'length' affected-stacks.json 2>/dev/null) || count=0
-        if [[ "${count:-0}" -gt 0 ]]; then
-          echo "has-affected-stacks=true" >> "$GITHUB_OUTPUT"
+        count=$(jq 'length' affected-stacks.json)
+        if [[ "$count" -gt 0 ]]; then
+          echo "has-affected-stacks=true" >> $GITHUB_OUTPUT
         else
-          echo "has-affected-stacks=false" >> "$GITHUB_OUTPUT"
+          echo "has-affected-stacks=false" >> $GITHUB_OUTPUT
         fi
 
         # Only put the full payload in $GITHUB_OUTPUT if it's under 1MB.
         # Larger payloads cause GitHub Actions' expression evaluator to OOM
         # when referenced in `if` conditions of subsequent steps.
-        file_size=$(wc -c < affected-stacks.json 2>/dev/null) || file_size=0
-        if [[ "${file_size:-0}" -lt 1048576 ]]; then
-          affected=$(jq -c '.' affected-stacks.json 2>/dev/null) || affected='[]'
-          printf "%s\n" "affected=${affected}" >> "$GITHUB_OUTPUT"
+        file_size=$(wc -c < affected-stacks.json)
+        if [[ "$file_size" -lt 1048576 ]]; then
+          affected=$(jq -c '.' affected-stacks.json)
+          printf "%s" "affected=$affected" >> $GITHUB_OUTPUT
         else
           echo "::warning::Affected stacks payload too large for GITHUB_OUTPUT (${file_size} bytes). Use affected-stacks.json file instead."
-          echo "affected=[]" >> "$GITHUB_OUTPUT"
+          echo "affected=[]" >> $GITHUB_OUTPUT
         fi
-
     - name: No changes summary
-      if: ${{ !cancelled() && inputs.atmos-pro-upload == 'false' && steps.affected.outputs.has-affected-stacks != 'true' }}
+      if: ${{ inputs.atmos-pro-upload == 'false' && steps.affected.outputs.has-affected-stacks != 'true' }}
       shell: bash
       run: |-
-        if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-          cat "${GITHUB_ACTION_PATH}/assets/summary.md" >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-    - name: Generate matrix
+        cat "${GITHUB_ACTION_PATH}/assets/summary.md" >> $GITHUB_STEP_SUMMARY
+    - uses: cloudposse/github-action-matrix-extended@c599eed8fa5d0b64440d8dbc7a81700fbd4c7fa5 # v0
       id: matrix
-      if: ${{ !cancelled() && inputs.atmos-pro-upload == 'false' }}
-      shell: bash
-      env:
-        MATRIX_FILE: affected-stacks.json
-        MATRIX_SORT_BY: ${{ steps.config.outputs.sort-by }}
-        MATRIX_GROUP_BY: ${{ steps.config.outputs.group-by }}
-        MATRIX_NESTED_COUNT: ${{ inputs.nested-matrices-count }}
-      run: bash "${GITHUB_ACTION_PATH}/assets/matrix-extended.sh"
+      if: ${{ inputs.atmos-pro-upload == 'false' }}
+      with:
+        matrix: affected-stacks.json
+        sort-by: ${{ steps.config.outputs.sort-by }}
+        group-by: ${{ steps.config.outputs.group-by }}
+        nested-matrices-count: ${{ inputs.nested-matrices-count }}

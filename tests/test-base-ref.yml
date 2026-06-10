@@ -1,0 +1,51 @@
+name: Test with explicit base-ref
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup base-ref directory for skip-checkout mode
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/base-ref"
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD || true
+
+      - id: action
+        uses: .
+        with:
+          atmos-config-path: >-
+            ${{ github.workspace }}/actions/hardened/cloudposse--github-action-atmos-affected-stacks/v6/tests/fixtures/atmos-config
+          base-ref: HEAD
+          skip-checkout: "true"
+          install-atmos: "true"
+          atmos-version: ">= 1.99.0"
+          nested-matrices-count: "1"
+
+      - name: Assert has-affected-stacks is a valid boolean
+        env:
+          ACTUAL: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $ACTUAL"
+          if [ "$ACTUAL" != "true" ] && [ "$ACTUAL" != "false" ]; then
+            echo "FAIL: expected 'true' or 'false', got '$ACTUAL'"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert matrix output is present
+        env:
+          ACTUAL: ${{ steps.action.outputs.matrix }}
+        run: |
+          echo "matrix: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: matrix output is empty"
+            exit 1
+          fi
+          echo "PASS"

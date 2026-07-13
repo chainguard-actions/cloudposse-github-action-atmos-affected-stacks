@@ -1,0 +1,12 @@
+base_path: "../../.."
+components:
+  terraform:
+    base_path: "tests/fixtures/components/terraform"
+stacks:
+  base_path: "tests/fixtures/stacks"
+  included_paths:
+    - "**/*"
+  excluded_paths: []
+  name_pattern: "{stage}"
+logs:
+  level: Info

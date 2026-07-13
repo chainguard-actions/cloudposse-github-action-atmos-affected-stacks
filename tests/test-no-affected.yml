@@ -1,0 +1,85 @@
+name: Test no affected stacks scenario
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup mock atmos in PATH (returns empty affected stacks)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          python3 << 'PYEOF'
+          import os, stat
+          script = r"""#!/bin/bash
+          case "$1" in
+            describe)
+              case "$2" in
+                affected)
+                  output_file="affected-stacks.json"
+                  for arg in "$@"; do
+                    case "$arg" in
+                      --file=*) output_file="${arg#--file=}" ;;
+                    esac
+                  done
+                  echo '[]' > "$output_file"
+                  ;;
+                config)
+                  echo '{"integrations":{"github":{"gitops":{"opentofu-version":null,"terraform-version":null,"artifact-storage":{"region":null},"role":{"plan":null},"matrix":{"sort-by":null,"group-by":null}}}}}'
+                  ;;
+                *)
+                  echo '{}'
+                  ;;
+              esac
+              ;;
+            *)
+              exit 0
+              ;;
+          esac
+          """
+          path = os.path.expandvars("$HOME/.local/bin/atmos")
+          with open(path, "w") as f:
+              f.write(script)
+          os.chmod(path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+          PYEOF
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup base-ref git directory
+        run: |
+          git clone --local --no-hardlinks "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/base-ref"
+
+      - id: action
+        uses: .
+        with:
+          atmos-config-path: >-
+            ${{ github.workspace }}/pristine/cloudposse--github-action-atmos-affected-stacks/v6.13.0/tests/fixtures/atmos-config
+          skip-checkout: "true"
+          install-atmos: "false"
+          nested-matrices-count: "1"
+
+      - name: Assert has-affected-stacks is false (no changes)
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: expected has-affected-stacks=false when no stacks are affected, got: $HAS_AFFECTED"
+            exit 1
+          fi
+          echo "PASS: has-affected-stacks=false as expected"
+
+      - name: Assert affected output is empty array
+        env:
+          AFFECTED: ${{ steps.action.outputs.affected }}
+        run: |
+          echo "affected: $AFFECTED"
+          if [ "$AFFECTED" != "[]" ]; then
+            echo "FAIL: expected affected=[] when no stacks are affected, got: $AFFECTED"
+            exit 1
+          fi
+          echo "PASS: affected=[] as expected"

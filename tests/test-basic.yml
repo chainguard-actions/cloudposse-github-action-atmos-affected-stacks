@@ -1,0 +1,94 @@
+name: Test basic usage - affected stacks
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup mock atmos in PATH
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          python3 << 'PYEOF'
+          import os, stat
+          script = r"""#!/bin/bash
+          case "$1" in
+            describe)
+              case "$2" in
+                affected)
+                  output_file="affected-stacks.json"
+                  for arg in "$@"; do
+                    case "$arg" in
+                      --file=*) output_file="${arg#--file=}" ;;
+                    esac
+                  done
+                  echo '[{"component":"example","component_type":"terraform","component_path":"components/terraform/example","stack":"example","stack_slug":"example-example","affected":"component"}]' > "$output_file"
+                  ;;
+                config)
+                  echo '{"integrations":{"github":{"gitops":{"opentofu-version":null,"terraform-version":null,"artifact-storage":{"region":null},"role":{"plan":null},"matrix":{"sort-by":null,"group-by":null}}}}}'
+                  ;;
+                *)
+                  echo '{}'
+                  ;;
+              esac
+              ;;
+            *)
+              exit 0
+              ;;
+          esac
+          """
+          path = os.path.expandvars("$HOME/.local/bin/atmos")
+          with open(path, "w") as f:
+              f.write(script)
+          os.chmod(path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+          PYEOF
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup base-ref git directory
+        run: |
+          git clone --local --no-hardlinks "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/base-ref"
+
+      - id: action
+        uses: .
+        with:
+          atmos-config-path: >-
+            ${{ github.workspace }}/pristine/cloudposse--github-action-atmos-affected-stacks/v6.13.0/tests/fixtures/atmos-config
+          skip-checkout: "true"
+          install-atmos: "false"
+          nested-matrices-count: "1"
+
+      - name: Assert has-affected-stacks output is set
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ -z "$HAS_AFFECTED" ]; then
+            echo "FAIL: has-affected-stacks output is empty"
+            exit 1
+          fi
+          if [ "$HAS_AFFECTED" != "true" ] && [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: has-affected-stacks must be 'true' or 'false', got: $HAS_AFFECTED"
+            exit 1
+          fi
+          echo "PASS: has-affected-stacks=$HAS_AFFECTED"
+
+      - name: Assert affected output is a non-empty JSON array
+        env:
+          AFFECTED: ${{ steps.action.outputs.affected }}
+        run: |
+          echo "affected: $AFFECTED"
+          if [ -z "$AFFECTED" ]; then
+            echo "FAIL: affected output is empty"
+            exit 1
+          fi
+          echo "$AFFECTED" | jq 'if type == "array" then . else error("not an array") end' > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "FAIL: affected output is not a JSON array"
+            exit 1
+          fi
+          echo "PASS: affected output is a valid JSON array"

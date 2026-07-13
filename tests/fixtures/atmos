@@ -1,0 +1,31 @@
+#!/bin/bash
+# Mock atmos binary for testing
+
+# Handle different atmos commands
+case "$1" in
+  describe)
+    case "$2" in
+      affected)
+        # Write mock affected stacks JSON to the file specified by --file flag
+        output_file="affected-stacks.json"
+        for arg in "$@"; do
+          case "$arg" in
+            --file=*) output_file="${arg#--file=}" ;;
+          esac
+        done
+        cat "${GITHUB_ACTION_PATH}/tests/fixtures/mock-atmos-describe-affected.json" > "$output_file"
+        ;;
+      config)
+        # Return minimal config JSON with null values so optional steps are skipped
+        echo '{"integrations":{"github":{"gitops":{"opentofu-version":null,"terraform-version":null,"artifact-storage":{"region":null},"role":{"plan":null},"matrix":{"sort-by":null,"group-by":null}}}}}'
+        ;;
+      *)
+        echo '{}'
+        ;;
+    esac
+    ;;
+  *)
+    echo "mock atmos: unknown command $*" >&2
+    exit 0
+    ;;
+esac

@@ -1,0 +1,49 @@
+name: Test no affected stacks scenario
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      # Create a base-ref directory that is identical to HEAD so there are no affected stacks
+      - name: Set up base-ref directory (same as HEAD)
+        run: |
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
+
+      - id: action
+        uses: .
+        with:
+          skip-checkout: "true"
+          atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
+          install-atmos: "true"
+          atmos-version: ">= 1.99.0"
+          nested-matrices-count: "1"
+
+      - name: Assert has-affected-stacks is false (no changes between HEAD and HEAD)
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: expected has-affected-stacks to be 'false' when comparing HEAD to HEAD, got: '$HAS_AFFECTED'"
+            exit 1
+          fi
+          echo "PASS: has-affected-stacks is 'false' as expected"
+
+      - name: Assert affected output is empty array
+        env:
+          AFFECTED: ${{ steps.action.outputs.affected }}
+        run: |
+          echo "affected: $AFFECTED"
+          # When there are no affected stacks, the output should be an empty JSON array
+          NORM="$(echo "$AFFECTED" | tr -d '[:space:]')"
+          if [ "$NORM" = "[]" ] || [ -z "$NORM" ]; then
+            echo "PASS: affected is empty as expected"
+          else
+            echo "FAIL: expected empty affected stacks but got: $AFFECTED"
+            exit 1
+          fi

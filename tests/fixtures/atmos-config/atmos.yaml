@@ -1,9 +1,9 @@
-base_path: "../../.."
+base_path: "../.."
 components:
   terraform:
-    base_path: "tests/fixtures/components/terraform"
+    base_path: "components/terraform"
 stacks:
-  base_path: "tests/fixtures/stacks"
+  base_path: "stacks"
   included_paths:
     - "**/*"
   excluded_paths: []

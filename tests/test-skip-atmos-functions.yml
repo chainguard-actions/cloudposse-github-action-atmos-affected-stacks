@@ -1,0 +1,44 @@
+name: Test skip-atmos-functions flag
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      # Create a base-ref directory identical to HEAD (no affected stacks)
+      - name: Set up base-ref directory
+        run: |
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
+
+      - id: action
+        uses: .
+        with:
+          skip-checkout: "true"
+          atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
+          install-atmos: "true"
+          atmos-version: ">= 1.99.0"
+          skip-atmos-functions: "true"
+          process-templates: "false"
+          process-functions: "false"
+          nested-matrices-count: "1"
+
+      - name: Assert action completed with skip-atmos-functions enabled
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+          AFFECTED: ${{ steps.action.outputs.affected }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          echo "affected: $AFFECTED"
+          if [ "$HAS_AFFECTED" != "true" ] && [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: expected has-affected-stacks to be 'true' or 'false', got: '$HAS_AFFECTED'"
+            exit 1
+          fi
+          if [ -z "$AFFECTED" ]; then
+            echo "FAIL: affected output should not be empty (at minimum should be '[]')"
+            exit 1
+          fi
+          echo "PASS: action completed successfully with skip-atmos-functions=true"

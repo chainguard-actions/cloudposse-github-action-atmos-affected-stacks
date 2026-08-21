@@ -1,51 +1,65 @@
-name: Test with explicit base-ref
+name: Test base-ref input
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_REF: refs/heads/main
-      GITHUB_EVENT_NAME: push
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
-      - name: Setup base-ref directory for skip-checkout mode
+      # Set up a base-ref directory that mirrors the current workspace
+      # so atmos describe affected can compare HEAD to it (no changes expected)
+      - name: Set up base-ref directory
         run: |
           mkdir -p "$GITHUB_WORKSPACE/base-ref"
-          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD || true
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD 2>/dev/null || \
+            cp -r "$GITHUB_WORKSPACE/.git" "$GITHUB_WORKSPACE/base-ref/.git"
+
+      - name: Get current HEAD SHA
+        id: head-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - id: action
         uses: .
         with:
-          atmos-config-path: >-
-            ${{ github.workspace }}/actions/hardened/cloudposse--github-action-atmos-affected-stacks/v6/tests/fixtures/atmos-config
-          base-ref: HEAD
           skip-checkout: "true"
+          base-ref: ${{ steps.head-sha.outputs.sha }}
+          atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
           install-atmos: "true"
           atmos-version: ">= 1.99.0"
           nested-matrices-count: "1"
 
-      - name: Assert has-affected-stacks is a valid boolean
+      - name: Assert has-affected-stacks output is set
         env:
-          ACTUAL: ${{ steps.action.outputs.has-affected-stacks }}
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
         run: |
-          echo "has-affected-stacks: $ACTUAL"
-          if [ "$ACTUAL" != "true" ] && [ "$ACTUAL" != "false" ]; then
-            echo "FAIL: expected 'true' or 'false', got '$ACTUAL'"
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ "$HAS_AFFECTED" != "true" ] && [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: expected has-affected-stacks to be 'true' or 'false', got: '$HAS_AFFECTED'"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: has-affected-stacks is '$HAS_AFFECTED'"
 
-      - name: Assert matrix output is present
+      - name: Assert affected output is set
         env:
-          ACTUAL: ${{ steps.action.outputs.matrix }}
+          AFFECTED: ${{ steps.action.outputs.affected }}
         run: |
-          echo "matrix: $ACTUAL"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: matrix output is empty"
+          echo "affected: $AFFECTED"
+          if [ -z "$AFFECTED" ]; then
+            echo "FAIL: expected affected output to be set (at least '[]')"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: affected output is set"
+
+      - name: Assert matrix output is set
+        env:
+          MATRIX: ${{ steps.action.outputs.matrix }}
+        run: |
+          echo "matrix: $MATRIX"
+          if [ -z "$MATRIX" ]; then
+            echo "FAIL: expected matrix output to be set"
+            exit 1
+          fi
+          echo "PASS: matrix output is set"

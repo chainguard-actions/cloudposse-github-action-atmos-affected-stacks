@@ -1,0 +1,52 @@
+name: Test matrix output structure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      # Create a base-ref directory identical to HEAD (no affected stacks)
+      - name: Set up base-ref directory
+        run: |
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
+
+      - id: action
+        uses: .
+        with:
+          skip-checkout: "true"
+          atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
+          install-atmos: "true"
+          atmos-version: ">= 1.99.0"
+          nested-matrices-count: "2"
+
+      - name: Assert matrix output is valid JSON
+        env:
+          MATRIX: ${{ steps.action.outputs.matrix }}
+        run: |
+          echo "matrix: $MATRIX"
+          if [ -z "$MATRIX" ]; then
+            echo "FAIL: matrix output is empty"
+            exit 1
+          fi
+          # Validate it's valid JSON
+          echo "$MATRIX" | jq . > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "FAIL: matrix output is not valid JSON: $MATRIX"
+            exit 1
+          fi
+          echo "PASS: matrix output is valid JSON"
+
+      - name: Assert has-affected-stacks output is boolean string
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ "$HAS_AFFECTED" != "true" ] && [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: expected 'true' or 'false', got: '$HAS_AFFECTED'"
+            exit 1
+          fi
+          echo "PASS: has-affected-stacks is a valid boolean string"

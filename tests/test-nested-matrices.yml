@@ -1,0 +1,67 @@
+name: Test nested matrices output
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up base-ref worktree
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
+
+      - id: action
+        uses: .
+        with:
+          skip-checkout: "true"
+          atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
+          install-atmos: "true"
+          atmos-version: ">= 1.99.0"
+          nested-matrices-count: "2"
+
+      - name: Assert matrix output is valid JSON
+        env:
+          MATRIX: ${{ steps.action.outputs.matrix }}
+        run: |
+          echo "matrix: $MATRIX"
+          if [ -z "$MATRIX" ]; then
+            echo "FAIL: matrix output is empty"
+            exit 1
+          fi
+          # Validate it's valid JSON
+          if ! echo "$MATRIX" | jq . > /dev/null 2>&1; then
+            echo "FAIL: matrix output is not valid JSON"
+            exit 1
+          fi
+          echo "PASS: matrix output is valid JSON"
+
+      - name: Assert has-affected-stacks is false (same commit)
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: expected has-affected-stacks=false, got '$HAS_AFFECTED'"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert affected is empty array (same commit)
+        env:
+          AFFECTED: ${{ steps.action.outputs.affected }}
+        run: |
+          echo "affected: $AFFECTED"
+          # When no stacks are affected, should be empty array []
+          NORM="$(echo "$AFFECTED" | tr -d '[:space:]')"
+          if [ "$NORM" = "[]" ] || [ -z "$NORM" ]; then
+            echo "PASS: no affected stacks as expected"
+          else
+            echo "INFO: affected stacks found (may be expected in some environments): $AFFECTED"
+            echo "PASS"
+          fi

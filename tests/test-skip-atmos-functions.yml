@@ -1,0 +1,70 @@
+name: Test skip-atmos-functions option
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up base-ref worktree
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
+
+      - id: action
+        uses: .
+        with:
+          skip-checkout: "true"
+          atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
+          install-atmos: "true"
+          atmos-version: ">= 1.99.0"
+          skip-atmos-functions: "true"
+          process-templates: "false"
+          process-functions: "false"
+          nested-matrices-count: "1"
+
+      - name: Assert has-affected-stacks output is set
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ -z "$HAS_AFFECTED" ]; then
+            echo "FAIL: has-affected-stacks output is empty"
+            exit 1
+          fi
+          echo "PASS: has-affected-stacks=$HAS_AFFECTED"
+
+      - name: Assert affected output is valid JSON
+        env:
+          AFFECTED: ${{ steps.action.outputs.affected }}
+        run: |
+          echo "affected: $AFFECTED"
+          if [ -z "$AFFECTED" ]; then
+            echo "FAIL: affected output is empty"
+            exit 1
+          fi
+          if ! echo "$AFFECTED" | jq . > /dev/null 2>&1; then
+            echo "FAIL: affected output is not valid JSON"
+            exit 1
+          fi
+          echo "PASS: affected output is valid JSON"
+
+      - name: Assert matrix output is valid JSON
+        env:
+          MATRIX: ${{ steps.action.outputs.matrix }}
+        run: |
+          echo "matrix: $MATRIX"
+          if [ -z "$MATRIX" ]; then
+            echo "FAIL: matrix output is empty"
+            exit 1
+          fi
+          if ! echo "$MATRIX" | jq . > /dev/null 2>&1; then
+            echo "FAIL: matrix output is not valid JSON"
+            exit 1
+          fi
+          echo "PASS: matrix output is valid JSON"

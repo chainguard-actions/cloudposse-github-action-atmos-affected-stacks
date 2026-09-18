@@ -1,6 +1,11 @@
 {
   "owner": "cloudposse",
   "repo": "github-action-atmos-affected-stacks",
-  "version": "",
-  "url": "https://github.com/cloudposse/github-action-atmos-affected-stacks"
+  "version": "v6.14.0",
+  "commit_sha": "86f8d8ef001bb5aee4b9a6e33f24ad79dbee78c9",
+  "url": "https://github.com/cloudposse/github-action-atmos-affected-stacks",
+  "policy_sha": "d636be7e43ef829af6e853da6b3c7566db9f72fe",
+  "test_policy_sha": "843adf9e4b8f85d0c08b27b9d0b09dd094b54702",
+  "test_agent_version": "2",
+  "harden_agent_version": "2"
 }

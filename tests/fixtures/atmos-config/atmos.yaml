@@ -1,0 +1,39 @@
+base_path: ".."
+
+components:
+  terraform:
+    base_path: "components/terraform"
+    apply_auto_approve: false
+    deploy_run_init: true
+    init_run_reconfigure: true
+    auto_generate_backend_file: false
+
+stacks:
+  base_path: "stacks"
+  included_paths:
+    - "orgs/**/*"
+  excluded_paths:
+    - "**/_defaults.yaml"
+  name_pattern: "{tenant}-{environment}-{stage}"
+
+logs:
+  verbose: false
+  colors: false
+  level: Info
+
+integrations:
+  github:
+    gitops:
+      terraform-version: ""
+      opentofu-version: ""
+      artifact-storage:
+        region: ""
+        bucket: ""
+        table: ""
+        role: ""
+      role:
+        plan: ""
+        apply: ""
+      matrix:
+        sort-by: .stack_slug
+        group-by: .stack_slug | split("-") | [.[0], .[2]] | join("-")

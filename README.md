@@ -10,6 +10,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 |---------|-----|-----------------|
 | v6 | [`v6`](https://github.com/chainguard-actions/cloudposse-github-action-atmos-affected-stacks/tree/v6) | [`6ec66de`](https://github.com/cloudposse/github-action-atmos-affected-stacks/commit/6ec66de8b44ba231ff7c2b572cdd4e1abdb3c14a) |
 | v6.13.0 | [`v6.13.0`](https://github.com/chainguard-actions/cloudposse-github-action-atmos-affected-stacks/tree/v6.13.0) | [`6ec66de`](https://github.com/cloudposse/github-action-atmos-affected-stacks/commit/6ec66de8b44ba231ff7c2b572cdd4e1abdb3c14a) |
+| v6.14.0 | [`v6.14.0`](https://github.com/chainguard-actions/cloudposse-github-action-atmos-affected-stacks/tree/v6.14.0) | [`86f8d8e`](https://github.com/cloudposse/github-action-atmos-affected-stacks/commit/86f8d8ef001bb5aee4b9a6e33f24ad79dbee78c9) |
 
 ## Privacy
 

@@ -1,8 +1,2 @@
 vars:
   stage: example
-
-components:
-  terraform:
-    example-component:
-      vars:
-        enabled: true

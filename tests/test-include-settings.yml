@@ -1,4 +1,4 @@
-name: Test nested matrices count output
+name: Test include-settings option
 on:
   workflow_dispatch:
 jobs:
@@ -21,30 +21,26 @@ jobs:
           atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
           install-atmos: "true"
           atmos-version: ">= 1.99.0"
-          nested-matrices-count: "2"
+          atmos-include-settings: "true"
+          nested-matrices-count: "1"
 
-      - name: Assert matrix output is valid JSON
-        env:
-          MATRIX: ${{ steps.action.outputs.matrix }}
-        run: |
-          echo "matrix: $MATRIX"
-          if [ -z "$MATRIX" ]; then
-            echo "FAIL: expected matrix output to be non-empty"
-            exit 1
-          fi
-          echo "$MATRIX" | jq . > /dev/null 2>&1 || {
-            echo "FAIL: matrix output is not valid JSON: $MATRIX"
-            exit 1
-          }
-          echo "PASS: matrix output is valid JSON"
-
-      - name: Assert has-affected-stacks output is valid
+      - name: Assert action completed with valid outputs
         env:
           HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+          AFFECTED: ${{ steps.action.outputs.affected }}
         run: |
           echo "has-affected-stacks: $HAS_AFFECTED"
+          echo "affected: $AFFECTED"
           if [ "$HAS_AFFECTED" != "true" ] && [ "$HAS_AFFECTED" != "false" ]; then
             echo "FAIL: expected has-affected-stacks to be 'true' or 'false', got: '$HAS_AFFECTED'"
             exit 1
           fi
-          echo "PASS: has-affected-stacks is valid: $HAS_AFFECTED"
+          if [ -z "$AFFECTED" ]; then
+            echo "FAIL: expected affected output to be non-empty (should be at least '[]')"
+            exit 1
+          fi
+          echo "$AFFECTED" | jq . > /dev/null 2>&1 || {
+            echo "FAIL: affected output is not valid JSON: $AFFECTED"
+            exit 1
+          }
+          echo "PASS: action completed successfully with include-settings=true"

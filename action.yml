@@ -145,8 +145,8 @@ runs:
       env:
         ATMOS_CONFIG_PATH: ${{ inputs.atmos-config-path }}
       run: |-
-        safe_path=$(realpath "$ATMOS_CONFIG_PATH" | tr -d '\n\r')
-        printf 'ATMOS_CLI_CONFIG_PATH=%s\n' "$safe_path" >> "$GITHUB_ENV"
+        safe_path=$(printf '%s' "$ATMOS_CONFIG_PATH" | tr -d '\n\r')
+        echo "ATMOS_CLI_CONFIG_PATH=$(realpath "$safe_path")" >> "$GITHUB_ENV"
     - name: config
       shell: bash
       id: config
@@ -287,7 +287,7 @@ runs:
       shell: bash
       run: |-
         cat "${GITHUB_ACTION_PATH}/assets/summary.md" >> $GITHUB_STEP_SUMMARY
-    - uses: cloudposse/github-action-matrix-extended@5e66a04f8e0e6532dd8248954677d5038955b690 # v0
+    - uses: chainguard-actions/cloudposse-github-action-matrix-extended@e25a707dddd1584f2d4b5627111d17ee621b369a # v0
       id: matrix
       if: ${{ inputs.atmos-pro-upload == 'false' }}
       with:

@@ -129,7 +129,7 @@ runs:
       if: ${{ inputs.skip-checkout != 'true' }}
       with:
         ref: ${{ inputs.head-ref }}
-    - uses: cloudposse-github-actions/install-gh-releases@33b15dbedceb0a3425d72f54a2300202d5c3418d # v1
+    - uses: chainguard-actions/cloudposse-github-actions-install-gh-releases@1f5d3a167b9edb83d37ab733bc258a1fd7dcc495 # v1
       if: ${{ inputs.install-jq == 'true' }}
       with:
         cache: true
@@ -164,7 +164,7 @@ runs:
         terraform_version: ${{ steps.config.outputs.terraform-version }}
         terraform_wrapper: false
     - name: Install OpenTofu
-      uses: cloudposse-github-actions/install-gh-releases@33b15dbedceb0a3425d72f54a2300202d5c3418d # v1
+      uses: chainguard-actions/cloudposse-github-actions-install-gh-releases@1f5d3a167b9edb83d37ab733bc258a1fd7dcc495 # v1
       if: ${{ steps.config.outputs.opentofu-version != '' && steps.config.outputs.opentofu-version != 'null' }}
       with:
         cache: true
@@ -216,7 +216,7 @@ runs:
         IDENTITY: ${{ inputs.identity }}
       shell: bash
       run: |
-        args=("--include-settings=$ATMOS_INCLUDE_SETTINGS" "--repo-path=${GITHUB_WORKSPACE}/base-ref")
+        args=("--include-settings=${ATMOS_INCLUDE_SETTINGS}" "--repo-path=${GITHUB_WORKSPACE}/base-ref")
 
         if [[ "$ATMOS_INCLUDE_SPACELIFT" == "true" ]]; then
           args+=("--include-spacelift-admin-stacks=true")
@@ -225,7 +225,7 @@ runs:
         fi
 
         if [[ -n "$ATMOS_STACK" ]]; then
-          args+=("--stack=$ATMOS_STACK")
+          args+=("--stack=${ATMOS_STACK}")
         fi
 
         if [[ "$SKIP_ATMOS_FUNCTIONS" == "true" ]]; then
@@ -241,7 +241,7 @@ runs:
         fi
 
         if [[ -n "$IDENTITY" ]]; then
-          args+=("--identity=$IDENTITY")
+          args+=("--identity=${IDENTITY}")
         fi
 
         printf '%s\n' "${args[@]}" > "${RUNNER_TEMP}/atmos-affected-args"

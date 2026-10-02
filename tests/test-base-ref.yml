@@ -17,11 +17,15 @@ jobs:
           # Use git worktree to create base-ref as a proper git worktree at HEAD
           git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
 
+      - name: Capture current HEAD SHA for base-ref input
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
       - id: action
         uses: .
         with:
           skip-checkout: "true"
-          base-ref: "HEAD"
+          base-ref: ${{ steps.sha.outputs.sha }}
           atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
           install-atmos: "true"
           atmos-version: ">= 1.99.0"
@@ -60,13 +64,13 @@ jobs:
           fi
           echo "PASS: matrix=$MATRIX"
 
-      - name: Assert no affected stacks (same commit via explicit base-ref=HEAD)
+      - name: Assert no affected stacks (same commit as base-ref)
         env:
           HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
         run: |
           echo "has-affected-stacks: $HAS_AFFECTED"
           if [ "$HAS_AFFECTED" != "false" ]; then
-            echo "FAIL: expected has-affected-stacks=false when base-ref=HEAD (same commit), got '$HAS_AFFECTED'"
+            echo "FAIL: expected has-affected-stacks=false when base-ref equals head-ref, got '$HAS_AFFECTED'"
             exit 1
           fi
-          echo "PASS: no affected stacks as expected with explicit base-ref"
+          echo "PASS: no affected stacks as expected when base-ref == head-ref"

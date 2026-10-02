@@ -17,19 +17,13 @@ jobs:
           # Create base-ref as a worktree pointing to the same HEAD
           git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
 
-      - name: Get current HEAD SHA for base-ref input
-        id: get-sha
-        run: |
-          SHA=$(git rev-parse HEAD)
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
-
       - id: action
         uses: .
         with:
           atmos-config-path: >-
             ${{ github.workspace }}/tests/fixtures/atmos-config
           skip-checkout: "true"
-          base-ref: ${{ steps.get-sha.outputs.sha }}
+          base-ref: "HEAD"
           install-atmos: "true"
           atmos-version: ">= 1.99.0"
           nested-matrices-count: "1"
@@ -45,11 +39,12 @@ jobs:
           fi
           echo "PASS: has-affected-stacks is '$HAS_AFFECTED'"
 
-      - name: Assert affected output is a valid JSON array
+      - name: Assert affected output is set (JSON array)
         env:
           AFFECTED: ${{ steps.action.outputs.affected }}
         run: |
           echo "affected: $AFFECTED"
+          # Should be a valid JSON array (possibly empty)
           if ! echo "$AFFECTED" | jq -e '. | type == "array"' > /dev/null 2>&1; then
             echo "FAIL: expected affected to be a JSON array, got: '$AFFECTED'"
             exit 1

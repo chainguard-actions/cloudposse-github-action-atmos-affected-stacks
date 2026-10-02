@@ -39,12 +39,11 @@ jobs:
           fi
           echo "PASS: has-affected-stacks is '$HAS_AFFECTED'"
 
-      - name: Assert affected output is set (JSON array)
+      - name: Assert affected output is a JSON array
         env:
           AFFECTED: ${{ steps.action.outputs.affected }}
         run: |
           echo "affected: $AFFECTED"
-          # Should be a valid JSON array (possibly empty)
           if ! echo "$AFFECTED" | jq -e '. | type == "array"' > /dev/null 2>&1; then
             echo "FAIL: expected affected to be a JSON array, got: '$AFFECTED'"
             exit 1

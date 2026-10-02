@@ -145,8 +145,8 @@ runs:
       env:
         ATMOS_CONFIG_PATH: ${{ inputs.atmos-config-path }}
       run: |-
-        safe_path=$(printf '%s' "$ATMOS_CONFIG_PATH" | tr -d '\n\r')
-        echo "ATMOS_CLI_CONFIG_PATH=$(realpath "$safe_path")" >> "$GITHUB_ENV"
+        safe=$(printf '%s' "$ATMOS_CONFIG_PATH" | tr -d '\n\r')
+        echo "ATMOS_CLI_CONFIG_PATH=$(realpath "$safe")" >> "$GITHUB_ENV"
     - name: config
       shell: bash
       id: config

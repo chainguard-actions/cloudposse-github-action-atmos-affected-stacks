@@ -197,7 +197,7 @@ runs:
       working-directory: base-ref
     - name: Configure Plan AWS Credentials
       if: ${{ steps.config.outputs.aws-region != '' && steps.config.outputs.aws-region != 'null' && steps.config.outputs.terraform-plan-role != '' && steps.config.outputs.terraform-plan-role != 'null' }}
-      uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
       with:
         aws-region: ${{ steps.config.outputs.aws-region }}
         role-to-assume: ${{ steps.config.outputs.terraform-plan-role }}
@@ -287,7 +287,7 @@ runs:
       shell: bash
       run: |-
         cat "${GITHUB_ACTION_PATH}/assets/summary.md" >> $GITHUB_STEP_SUMMARY
-    - uses: cloudposse/github-action-matrix-extended@c599eed8fa5d0b64440d8dbc7a81700fbd4c7fa5 # v0
+    - uses: cloudposse/github-action-matrix-extended@5e66a04f8e0e6532dd8248954677d5038955b690 # v0
       id: matrix
       if: ${{ inputs.atmos-pro-upload == 'false' }}
       with:

@@ -1,4 +1,4 @@
-name: Test skip-atmos-functions and process-templates flags
+name: Test nested matrices count output
 on:
   workflow_dispatch:
 jobs:
@@ -24,21 +24,23 @@ jobs:
           skip-checkout: "true"
           install-atmos: "true"
           atmos-version: ">= 1.99.0"
-          skip-atmos-functions: "true"
-          process-templates: "false"
-          process-functions: "false"
-          nested-matrices-count: "1"
+          nested-matrices-count: "2"
 
-      - name: Assert has-affected-stacks output is set
+      - name: Assert matrix output is valid JSON
         env:
-          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+          MATRIX: ${{ steps.action.outputs.matrix }}
         run: |
-          echo "has-affected-stacks: $HAS_AFFECTED"
-          if [ "$HAS_AFFECTED" != "true" ] && [ "$HAS_AFFECTED" != "false" ]; then
-            echo "FAIL: expected has-affected-stacks to be 'true' or 'false', got: '$HAS_AFFECTED'"
+          echo "matrix: $MATRIX"
+          if [ -z "$MATRIX" ]; then
+            echo "FAIL: expected matrix output to be non-empty"
             exit 1
           fi
-          echo "PASS: has-affected-stacks is '$HAS_AFFECTED'"
+          # Matrix should be valid JSON
+          if ! echo "$MATRIX" | jq -e '.' > /dev/null 2>&1; then
+            echo "FAIL: matrix output is not valid JSON: '$MATRIX'"
+            exit 1
+          fi
+          echo "PASS: matrix output is valid JSON"
 
       - name: Assert affected output is a JSON array
         env:
@@ -50,3 +52,14 @@ jobs:
             exit 1
           fi
           echo "PASS: affected is a valid JSON array"
+
+      - name: Assert has-affected-stacks is boolean string
+        env:
+          HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
+        run: |
+          echo "has-affected-stacks: $HAS_AFFECTED"
+          if [ "$HAS_AFFECTED" != "true" ] && [ "$HAS_AFFECTED" != "false" ]; then
+            echo "FAIL: expected 'true' or 'false', got: '$HAS_AFFECTED'"
+            exit 1
+          fi
+          echo "PASS"

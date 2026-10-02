@@ -1,4 +1,4 @@
-name: Test base-ref input
+name: Test base-ref input - explicit base ref
 on:
   workflow_dispatch:
 jobs:
@@ -9,24 +9,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Set up a base-ref directory that mirrors the current workspace
-      # so atmos describe affected can compare HEAD to it (no changes expected)
-      - name: Set up base-ref directory
+      # Set up a base-ref directory pointing to the same commit (no changes expected)
+      - name: Set up base-ref directory for atmos describe affected
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/base-ref"
-          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD 2>/dev/null || \
-            cp -r "$GITHUB_WORKSPACE/.git" "$GITHUB_WORKSPACE/base-ref/.git"
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          # Create base-ref as a worktree pointing to the same HEAD
+          git worktree add "$GITHUB_WORKSPACE/base-ref" HEAD
 
-      - name: Get current HEAD SHA
-        id: head-sha
-        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Get current HEAD SHA for base-ref input
+        id: get-sha
+        run: |
+          SHA=$(git rev-parse HEAD)
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
 
       - id: action
         uses: .
         with:
+          atmos-config-path: >-
+            ${{ github.workspace }}/tests/fixtures/atmos-config
           skip-checkout: "true"
-          base-ref: ${{ steps.head-sha.outputs.sha }}
-          atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
+          base-ref: ${{ steps.get-sha.outputs.sha }}
           install-atmos: "true"
           atmos-version: ">= 1.99.0"
           nested-matrices-count: "1"
@@ -42,16 +45,16 @@ jobs:
           fi
           echo "PASS: has-affected-stacks is '$HAS_AFFECTED'"
 
-      - name: Assert affected output is set
+      - name: Assert affected output is a valid JSON array
         env:
           AFFECTED: ${{ steps.action.outputs.affected }}
         run: |
           echo "affected: $AFFECTED"
-          if [ -z "$AFFECTED" ]; then
-            echo "FAIL: expected affected output to be set (at least '[]')"
+          if ! echo "$AFFECTED" | jq -e '. | type == "array"' > /dev/null 2>&1; then
+            echo "FAIL: expected affected to be a JSON array, got: '$AFFECTED'"
             exit 1
           fi
-          echo "PASS: affected output is set"
+          echo "PASS: affected is a valid JSON array"
 
       - name: Assert matrix output is set
         env:
@@ -59,7 +62,7 @@ jobs:
         run: |
           echo "matrix: $MATRIX"
           if [ -z "$MATRIX" ]; then
-            echo "FAIL: expected matrix output to be set"
+            echo "FAIL: expected matrix output to be non-empty"
             exit 1
           fi
           echo "PASS: matrix output is set"

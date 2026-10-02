@@ -1,6 +1,7 @@
 name: Test base-ref input
 on:
   workflow_dispatch:
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -9,11 +10,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up mock atmos binary
+      - name: Setup mock atmos in PATH
         run: |
           mkdir -p "$HOME/.local/bin"
-          cat > "$HOME/.local/bin/atmos" << 'EOF'
-          #!/bin/bash
+          python3 << 'PYEOF'
+          import os, stat
+          script = r"""#!/bin/bash
           case "$1" in
             describe)
               case "$2" in
@@ -38,30 +40,26 @@ jobs:
               exit 0
               ;;
           esac
-          EOF
-          chmod +x "$HOME/.local/bin/atmos"
+          """
+          path = os.path.expandvars("$HOME/.local/bin/atmos")
+          with open(path, "w") as f:
+              f.write(script)
+          os.chmod(path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+          PYEOF
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Set up base-ref directory with a named branch
+      - name: Setup base-ref git directory with a known ref
         run: |
-          # Create a local bare-style clone as base-ref directory
-          # We need a git repo in base-ref that has a branch we can checkout by name
-          git config user.email "test@example.com"
-          git config user.name "Test User"
-
-          # Create base-ref as a worktree on a new branch so we can checkout by ref
-          git branch base-test-branch HEAD 2>/dev/null || true
-          mkdir -p "$GITHUB_WORKSPACE/base-ref"
-          git worktree add "$GITHUB_WORKSPACE/base-ref" base-test-branch 2>/dev/null || \
-            git worktree add --force "$GITHUB_WORKSPACE/base-ref" HEAD
+          # Clone the workspace into base-ref so the action can run git checkout <base-ref>
+          git clone --local --no-hardlinks "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/base-ref"
 
       - id: action
         uses: .
         with:
-          skip-checkout: "true"
-          base-ref: "base-test-branch"
           atmos-config-path: >-
             ${{ github.workspace }}/hardened/tests/fixtures/atmos-config
+          skip-checkout: "true"
+          base-ref: "HEAD"
           install-atmos: "false"
           nested-matrices-count: "1"
 

@@ -1,4 +1,4 @@
-name: Test base-ref input - explicit base ref comparison
+name: Test base-ref input - explicit base ref
 on:
   workflow_dispatch:
 
@@ -10,7 +10,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up base-ref worktree (same commit = no affected stacks)
+      - name: Set up base-ref worktree at HEAD (same commit = no affected stacks)
         run: |
           git config user.email "test@example.com"
           git config user.name "Test User"
@@ -21,7 +21,7 @@ jobs:
         uses: .
         with:
           skip-checkout: "true"
-          base-ref: ${{ github.sha }}
+          base-ref: "HEAD"
           atmos-config-path: "${{ github.workspace }}/tests/fixtures/atmos-config"
           install-atmos: "true"
           atmos-version: ">= 1.99.0"
@@ -60,13 +60,13 @@ jobs:
           fi
           echo "PASS: matrix=$MATRIX"
 
-      - name: Assert no affected stacks (same commit as base-ref)
+      - name: Assert no affected stacks (same commit via explicit base-ref=HEAD)
         env:
           HAS_AFFECTED: ${{ steps.action.outputs.has-affected-stacks }}
         run: |
           echo "has-affected-stacks: $HAS_AFFECTED"
           if [ "$HAS_AFFECTED" != "false" ]; then
-            echo "FAIL: expected has-affected-stacks=false when base-ref equals head, got '$HAS_AFFECTED'"
+            echo "FAIL: expected has-affected-stacks=false when base-ref=HEAD (same commit), got '$HAS_AFFECTED'"
             exit 1
           fi
-          echo "PASS: no affected stacks as expected when base-ref equals head"
+          echo "PASS: no affected stacks as expected with explicit base-ref"

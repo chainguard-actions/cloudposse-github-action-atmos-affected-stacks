@@ -216,7 +216,7 @@ runs:
         IDENTITY: ${{ inputs.identity }}
       shell: bash
       run: |
-        args=("--include-settings=${ATMOS_INCLUDE_SETTINGS}" "--repo-path=${GITHUB_WORKSPACE}/base-ref")
+        args=("--include-settings=$ATMOS_INCLUDE_SETTINGS" "--repo-path=${GITHUB_WORKSPACE}/base-ref")
 
         if [[ "$ATMOS_INCLUDE_SPACELIFT" == "true" ]]; then
           args+=("--include-spacelift-admin-stacks=true")
@@ -225,7 +225,7 @@ runs:
         fi
 
         if [[ -n "$ATMOS_STACK" ]]; then
-          args+=("--stack=${ATMOS_STACK}")
+          args+=("--stack=$ATMOS_STACK")
         fi
 
         if [[ "$SKIP_ATMOS_FUNCTIONS" == "true" ]]; then
@@ -241,7 +241,7 @@ runs:
         fi
 
         if [[ -n "$IDENTITY" ]]; then
-          args+=("--identity=${IDENTITY}")
+          args+=("--identity=$IDENTITY")
         fi
 
         printf '%s\n' "${args[@]}" > "${RUNNER_TEMP}/atmos-affected-args"
